@@ -1,0 +1,53 @@
+# Python-generated files.
+__pycache__/
+*.py[oc]
+*.py[cod]
+.pytest_cache/
+build/
+dist/
+wheels/
+*.egg-info
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.ipynb_checkpoints/
+
+# Virtual environments.
+.venv
+.env
+.env.*
+!.env.example
+
+.vscode/
+.idea/
+.agents/
+.codex/
+
+# Operating-system metadata.
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local runtime output and persistent data.
+*.log
+*.pid
+cloud/
+benchmark_results/
+kafka_storage_backup_*/
+kafka/
+checkpoints/
+context_block*.html
+*.tmp
+*.bak
+
+scripts/check_dashboard_realtime.py
+
+scripts/benchmark_streaming.ps1
+
+src/producer/late_data_test.py
+src/producer/late_data_test_flink.py
+
+context/
+tests/

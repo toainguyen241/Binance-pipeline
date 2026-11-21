@@ -1,0 +1,25 @@
+FROM flink:1.19-scala_2.12@sha256:1bf0a2e91e8640900914dfd54ed605776778b1d978257e72438547004e49c6a9
+
+USER root
+
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip python3-dev wget && \
+    ln -s /usr/bin/python3 /usr/bin/python && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install --no-cache-dir apache-flink==1.19.1 requests==2.34.2
+
+RUN wget -P /opt/flink/lib/ \
+    https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.2.0-1.19/flink-sql-connector-kafka-3.2.0-1.19.jar && \
+    echo "c3eda3cd295c1cdfb1dcbae4e0fd318d82e2dd6f073328e30cd79f1d9a990775  /opt/flink/lib/flink-sql-connector-kafka-3.2.0-1.19.jar" \
+    | sha256sum -c -
+
+
+RUN mkdir -p /opt/flink/checkpoints && chown -R flink:flink /opt/flink/checkpoints
+
+WORKDIR /opt/flink/usrlib
+COPY src/consumer/flink_ohlc_consumer.py .
+COPY src/consumer/ohlc_logic.py .
+COPY src/consumer/clickhouse_http.py .
+
+CMD ["python3", "flink_ohlc_consumer.py"]

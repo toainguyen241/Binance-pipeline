@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <title>Binance Realtime Dashboard</title>
+    <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, "Segoe UI", sans-serif;
+            background: #0d1117;
+            background-image:
+                radial-gradient(ellipse at top, rgba(74, 222, 128, 0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom, rgba(249, 115, 22, 0.04) 0%, transparent 50%);
+            color: #c9d1d9;
+        }
+        header {
+            padding: 12px 20px;
+            border-bottom: 1px solid #21262d;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        header h1 {
+            font-size: 18px;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 800;
+            background: linear-gradient(90deg, #f7931a 0%, #4ade80 50%, #58a6ff 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        #header-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            border-radius: 7px;
+            background: linear-gradient(135deg, #f7931a, #4ade80);
+            color: #0d1117;
+            font-weight: 800;
+            font-size: 14px;
+            margin-right: 4px;
+        }
+        #header-icon svg { width: 17px; height: 17px; fill: currentColor; }
+        #refresh-btn {
+            margin-left: auto;
+            background: #161b22;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        #refresh-btn:hover { background: #21262d; border-color: #4ade80; color: #4ade80; }
+        #connection-status {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        #connection-status.connected { background: #1a4d2e; color: #4ade80; }
+        #connection-status.disconnected { background: #4d1a1a; color: #f87171; }
+
+        #health-strip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 20px;
+            overflow-x: auto;
+            border-bottom: 1px solid #21262d;
+            background: rgba(13, 17, 23, 0.82);
+        }
+        .health-chip {
+            white-space: nowrap;
+            border: 1px solid #30363d;
+            border-radius: 999px;
+            padding: 3px 9px;
+            font-size: 10px;
+            color: #8b949e;
+            background: #161b22;
+        }
+        .health-chip.ok { color: #4ade80; border-color: rgba(74, 222, 128, 0.35); }
+        .health-chip.warning { color: #facc15; border-color: rgba(250, 204, 21, 0.4); }
+        .health-chip.error { color: #f87171; border-color: rgba(248, 113, 113, 0.4); }
+
+        #ticker-bar {
+            display: flex;
+            gap: 8px;
+            padding: 12px 20px;
+            overflow-x: auto;
+            border-bottom: 1px solid #21262d;
+        }
+        .ticker-card {
+            position: relative;
+            min-width: 130px;
+            flex: 1;
+            padding: 10px 14px;
+            background: #161b22;
+            border: 1px solid #21262d;
+            border-radius: 12px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .ticker-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--accent, #4ade80);
+            opacity: 0.85;
+        }
+        .ticker-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+        }
+        .ticker-card:hover::before { opacity: 1; }
+        .ticker-card.active {
+            border-color: var(--accent, #58a6ff);
+            box-shadow: 0 0 0 1px var(--accent, #58a6ff);
+        }
+        .ticker-card.active::before { opacity: 1; }
+        .symbol-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 2px;
+        }
+        .symbol-icon {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .symbol-icon svg { width: 12px; height: 12px; fill: currentColor; }
+        .ticker-card .symbol { font-size: 12px; color: #8b949e; letter-spacing: 0.3px; }
+        .ticker-card .price {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent, #c9d1d9);
+            transition: color 0.15s;
+        }
+        .ticker-card .price.flash-up { color: #4ade80; }
+        .ticker-card .price.flash-down { color: #f87171; }
+        .ticker-card .change {
+            font-size: 12px;
+            margin-top: 2px;
+        }
+        .ticker-card .change.positive { color: #4ade80; }
+        .ticker-card .change.negative { color: #f87171; }
+        .ticker-card .change.neutral { color: #6e7681; }
+        .ticker-card .volume-24h {
+            font-size: 11px;
+            color: #6e7681;
+            margin-top: 2px;
+        }
+        .freshness {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            min-height: 13px;
+            margin-top: 3px;
+            font-size: 10px;
+            color: #6e7681;
+        }
+        .freshness-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #6e7681;
+        }
+        .freshness.fresh { color: #4ade80; }
+        .freshness.fresh .freshness-dot { background: #4ade80; box-shadow: 0 0 5px rgba(74, 222, 128, 0.5); }
+        .freshness.delayed { color: #facc15; }
+        .freshness.delayed .freshness-dot { background: #facc15; }
+        .freshness.stale { color: #f87171; }
+        .freshness.stale .freshness-dot { background: #f87171; }
+
+        #stats-row-container { padding: 0 20px 20px; display: flex; gap: 20px; flex-wrap: wrap; }
+        #price-stats-panel, #volume-panel {
+            flex: 1;
+            min-width: 320px;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #price-stats-table {
+            border: 1px solid #21262d;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        #price-stats-table table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        #price-stats-table th, #price-stats-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #21262d;
+        }
+        #price-stats-table th {
+            background: #161b22;
+            color: #8b949e;
+            font-weight: 500;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        #price-stats-table td.text-right, #price-stats-table th.text-right { text-align: right; }
+
+        #volume-chart-wrapper {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+            min-height: 200px;
+        }
+        #volume-axis {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 12px 0;
+            font-size: 10px;
+            color: #6e7681;
+            white-space: nowrap;
+        }
+        #volume-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            flex: 1;
+            padding: 12px 16px 0;
+            border: 1px solid #21262d;
+            border-radius: 12px;
+            background: #161b22;
+        }
+        .volume-bar-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+        .volume-bar-fill {
+            width: 100%;
+            max-width: 40px;
+            border-radius: 4px 4px 0 0;
+            transition: height 0.4s ease;
+            min-height: 2px;
+        }
+        .volume-bar-label {
+            font-size: 11px;
+            color: #8b949e;
+            padding-bottom: 8px;
+            white-space: nowrap;
+        }
+
+        #chart-container {
+            padding: 20px;
+            position: relative;
+        }
+        #timeframe-selector {
+            position: absolute;
+            top: 28px;
+            right: 28px;
+            z-index: 3;
+            display: flex;
+            gap: 4px;
+            padding: 3px;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            background: rgba(13, 17, 23, 0.88);
+        }
+        .timeframe-btn {
+            min-width: 38px;
+            padding: 5px 7px;
+            border: 0;
+            border-radius: 4px;
+            background: transparent;
+            color: #8b949e;
+            font: inherit;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .timeframe-btn:hover { color: #e6edf3; background: #21262d; }
+        .timeframe-btn.active { color: #f0b90b; background: #30363d; }
+
+        #chart {
+            height: 480px;
+            position: relative;
+            opacity: 1;
+            transition: opacity 0.16s ease;
+        }
+        #chart-container.switching #chart { opacity: 0.38; }
+        #chart-switch-status {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            z-index: 4;
+            transform: translate(-50%, -50%) translateY(4px);
+            padding: 7px 12px;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            background: rgba(13, 17, 23, 0.9);
+            color: #8b949e;
+            font-size: 12px;
+            letter-spacing: 0.4px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.12s ease, transform 0.12s ease;
+        }
+        #chart-container.switching #chart-switch-status {
+            opacity: 1;
+            transform: translate(-50%, -50%) translateY(0);
+        }
+
+        #chart-title {
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #e6edf3;
+            margin-bottom: 10px;
+        }
+        #chart-legend {
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 10px;
+            background: rgba(13, 17, 23, 0.7);
+            border-radius: 4px;
+            pointer-events: none; 
+        }
+        #legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid #4ade80;
+            background: transparent;
+            display: inline-block;
+            transition: border-color 0.15s;
+        }
+        #legend-symbol {
+            font-size: 14px;
+            color: #c9d1d9;
+            font-weight: 600;
+        }
+        #legend-suffix {
+            font-size: 12px;
+            color: #8b949e;
+        }
+
+        #recent-trades-container { padding: 0 20px 20px; }
+        #recent-trades-table {
+            border: 1px solid #21262d;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        #recent-trades-table table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            font-size: 15px;
+        }
+        #recent-trades-table th:nth-child(1), #recent-trades-table td:nth-child(1) { width: 18%; }
+        #recent-trades-table th:nth-child(2), #recent-trades-table td:nth-child(2) { width: 15%; }
+        #recent-trades-table th:nth-child(3), #recent-trades-table td:nth-child(3) { width: 22%; }
+        #recent-trades-table th:nth-child(4), #recent-trades-table td:nth-child(4) { width: 22.5%; }
+        #recent-trades-table th:nth-child(5), #recent-trades-table td:nth-child(5) { width: 22.5%; }
+        #recent-trades-table th, #recent-trades-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #21262d;
+            font-weight: 500;
+        }
+        #recent-trades-table td { font-size: 15px; }
+        #recent-trades-table th {
+            background: #161b22;
+            color: #8b949e;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        #recent-trades-table td.text-right,
+        #recent-trades-table th.text-right { text-align: right; }
+        #recent-trades-table tbody tr {
+            transition: background-color 0.5s;
+        }
+        #recent-trades-table tbody tr.flash-new {
+            background-color: rgba(74, 222, 128, 0.08);
+        }
+
+    </style>
+</head>
+<body>
+    <header>
+        <h1><span id="header-icon" aria-label="Binance"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.25 15.05 5.3 12 8.35 8.95 5.3 12 2.25Zm-5.3 5.3L9.75 10.6 6.7 13.65 3.65 10.6 6.7 7.55Zm10.6 0 3.05 3.05-3.05 3.05-3.05-3.05 3.05-3.05ZM12 8.95 15.05 12 12 15.05 8.95 12 12 8.95Zm0 6.7 3.05 3.05L12 21.75 8.95 18.7 12 15.65Z"/></svg></span>Binance Realtime Dashboard</h1>
+        <span id="connection-status" class="disconnected">Đang kết nối...</span>
+        <button id="refresh-btn" onclick="location.reload()">↻ Refresh</button>
+    </header>
+
+    <div id="health-strip" aria-label="Pipeline data quality status">
+        <span id="freshness-summary" class="health-chip">Trade freshness: --/8</span>
+        <span id="dq-alert-summary" class="health-chip">DQ alerts (30m): --</span>
+        <span id="dq-checked" class="health-chip">DQ checked: --</span>
+        <span id="stats-updated" class="health-chip">24h updated: --</span>
+    </div>
+
+    <div id="ticker-bar"></div>
+
+    <div id="chart-container">
+        <div id="timeframe-selector" aria-label="Chart timeframe">
+            <button class="timeframe-btn" data-timeframe="1H">1H</button>
+            <button class="timeframe-btn" data-timeframe="3H">3H</button>
+            <button class="timeframe-btn active" data-timeframe="6H">6H</button>
+            <button class="timeframe-btn" data-timeframe="24H">24H</button>
+        </div>
+        <div id="chart">
+            <div id="chart-legend">
+                <span id="legend-dot"></span>
+                <span id="legend-symbol">BTCUSDT</span>
+                <span id="legend-suffix">— OHLC 10s</span>
+            </div>
+        </div>
+        <div id="chart-switch-status">Đang tải chart...</div>
+    </div>
+
+    <div id="recent-trades-container">
+        <div id="chart-title" style="margin-top: 20px;">Recent Trades</div>
+        <div id="recent-trades-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Pair</th>
+                        <th class="text-right">Trade ID</th>
+                        <th class="text-right">Price</th>
+                        <th class="text-right">Size</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-trades-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="stats-row-container">
+        <div id="price-stats-panel">
+            <div id="chart-title">Price Statistics (24h)</div>
+            <div id="price-stats-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Asset</th>
+                            <th class="text-right">Trades</th>
+                            <th class="text-right">Low</th>
+                            <th class="text-right">High</th>
+                            <th class="text-right">Avg</th>
+                        </tr>
+                    </thead>
+                    <tbody id="price-stats-body"></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="volume-panel">
+            <div id="chart-title">Quote Volume 24h (USDT)</div>
+            <div id="volume-chart-wrapper">
+                <div id="volume-axis"></div>
+                <div id="volume-bars"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT",
+                          "XRPUSDT", "ADAUSDT", "DOGEUSDT", "AVAXUSDT"];
+        let activeSymbol = "BTCUSDT";
+        const latestTradeTimes = {};
+
+        // Màu + icon glyph cố định theo từng symbol — dùng chung cho ticker card, Recent Trades, Price Statistics, Volume bars.
+        
+        const SYMBOL_COLORS = {
+            BTCUSDT: "#f7931a",
+            ETHUSDT: "#627eea",
+            SOLUSDT: "#00ffa3",
+            BNBUSDT: "#f0b90b",
+            XRPUSDT: "#00aae4",
+            ADAUSDT: "#3468d1",
+            DOGEUSDT: "#c2a633",
+            AVAXUSDT: "#e84142",
+        };
+        const SYMBOL_ICONS = {
+            BTCUSDT: "₿",
+            ETHUSDT: "Ξ",
+            SOLUSDT: "◎",
+            BNBUSDT: '<svg viewBox="0 0 24 24" aria-label="Binance"><path d="M12 2.25 15.05 5.3 12 8.35 8.95 5.3 12 2.25Zm-5.3 5.3L9.75 10.6 6.7 13.65 3.65 10.6 6.7 7.55Zm10.6 0 3.05 3.05-3.05 3.05-3.05-3.05 3.05-3.05ZM12 8.95 15.05 12 12 15.05 8.95 12 12 8.95Zm0 6.7 3.05 3.05L12 21.75 8.95 18.7 12 15.65Z"/></svg>',
+            XRPUSDT: "✕",
+            ADAUSDT: "A",
+            DOGEUSDT: "Ð",
+            AVAXUSDT: "▲",
+        };
+        function getSymbolColor(symbol) {
+            return SYMBOL_COLORS[symbol] || "#8b949e";
+        }
+        function getSymbolIcon(symbol) {
+            return SYMBOL_ICONS[symbol] || "?";
+        }
+
+        // ---- Ticker bar ----
+        const tickerBar = document.getElementById("ticker-bar");
+        SYMBOLS.forEach(sym => {
+            const card = document.createElement("div");
+            card.className = "ticker-card" + (sym === activeSymbol ? " active" : "");
+            card.id = `ticker-${sym}`;
+            const color = getSymbolColor(sym);
+            card.style.setProperty("--accent", color);
+            card.innerHTML = `
+                <div class="symbol-row">
+                    <span class="symbol-icon" style="background: ${color}22; color: ${color};">${getSymbolIcon(sym)}</span>
+                    <span class="symbol">${sym}</span>
+                </div>
+                <div class="price">--</div>
+                <div class="change neutral">--</div>
+                <div class="volume-24h">Vol --</div>
+                <div class="freshness unknown" title="Chưa nhận event time">
+                    <span class="freshness-dot"></span>
+                    <span class="freshness-label">Waiting...</span>
+                </div>
+            `;
+            card.onclick = () => setActiveSymbol(sym);
+            tickerBar.appendChild(card);
+        });
+
+        // ---- Chart ----
+        const chart = LightweightCharts.createChart(document.getElementById("chart"), {
+            layout: { background: { color: "#0d1117" }, textColor: "#c9d1d9" },
+            grid: {
+                vertLines: { color: "#21262d" },
+                horzLines: { color: "#21262d" },
+            },
+            timeScale: {
+                timeVisible: true,
+                secondsVisible: true,
+                // Kết hợp ngày + giờ trên nhãn trục X.
+                tickMarkFormatter: (time) => {
+                    const date = new Date(time * 1000);
+                    const dd = String(date.getDate()).padStart(2, "0");
+                    const mm = String(date.getMonth() + 1).padStart(2, "0");
+                    const hh = String(date.getHours()).padStart(2, "0");
+                    const min = String(date.getMinutes()).padStart(2, "0");
+                    return `${dd}/${mm} ${hh}:${min}`;
+                },
+            },
+        });
+
+        const candleSeries = chart.addCandlestickSeries({
+            upColor: "#4ade80", downColor: "#f87171",
+            borderVisible: false,
+            wickUpColor: "#4ade80", wickDownColor: "#f87171",
+        });
+
+        chart.priceScale('').applyOptions({
+            scaleMargins: { top: 0.05, bottom: 0.3 },
+        });
+
+        const volumeSeries = chart.addHistogramSeries({
+            priceFormat: { type: 'volume' },
+            priceScaleId: 'volume',
+        });
+        chart.priceScale('volume').applyOptions({
+            scaleMargins: { top: 0.8, bottom: 0 },
+        });
+
+        new ResizeObserver(entries => {
+            chart.applyOptions({ width: entries[0].contentRect.width });
+        }).observe(document.getElementById("chart"));
+
+        // ---- State ----
+        const lastRenderedBar = {};  // symbol + timeframe -> last rendered bar
+        const lastBarTime = {};      // symbol + timeframe -> last rendered unix time
+        const ohlcCache = {};         // symbol + timeframe -> hydrated cache entry
+        const TIMEFRAME_CONFIG = {
+            "1H": { maxBars: 360, resolution: "10s" },
+            "3H": { maxBars: 1080, resolution: "10s" },
+            "6H": { maxBars: 2160, resolution: "10s" },
+            "24H": { maxBars: 1440, resolution: "1m" },
+        };
+        const chartContainerEl = document.getElementById("chart-container");
+        const chartSwitchStatusEl = document.getElementById("chart-switch-status");
+        let activeTimeframe = "6H";
+        let chartSymbol = null;
+        let chartTimeframe = null;
+        let symbolSwitchToken = 0;
+
+        function getOhlcCacheKey(symbol, timeframe = activeTimeframe) {
+            return `${symbol}:${timeframe}`;
+        }
+
+        document.querySelectorAll(".timeframe-btn").forEach(button => {
+            button.addEventListener("click", () => setActiveTimeframe(button.dataset.timeframe));
+        });
+
+        function setActiveTimeframe(timeframe) {
+            if (!TIMEFRAME_CONFIG[timeframe] || timeframe === activeTimeframe) return;
+            activeTimeframe = timeframe;
+            document.querySelectorAll(".timeframe-btn").forEach(button => {
+                button.classList.toggle("active", button.dataset.timeframe === timeframe);
+            });
+            document.getElementById("legend-suffix").textContent =
+                timeframe === "24H" ? "— OHLC 1m" : "— OHLC 10s";
+            setActiveSymbol(activeSymbol);
+        }
+
+        function getPriceFormat(symbol) {
+            if (["ADAUSDT", "DOGEUSDT", "XRPUSDT"].includes(symbol)) {
+                return { type: "price", precision: 4, minMove: 0.0001 };
+            }
+            if (["AVAXUSDT"].includes(symbol)) {
+                return { type: "price", precision: 3, minMove: 0.001 };
+            }
+            return { type: "price", precision: 2, minMove: 0.01 }; 
+        }
+
+        async function setActiveSymbol(sym) {
+            if (
+                sym === activeSymbol &&
+                chartSymbol === sym &&
+                chartTimeframe === activeTimeframe
+            ) return;
+
+            const switchToken = ++symbolSwitchToken;
+            document.getElementById(`ticker-${activeSymbol}`).classList.remove("active");
+            activeSymbol = sym;
+            document.getElementById(`ticker-${activeSymbol}`).classList.add("active");
+            document.getElementById("legend-symbol").textContent = sym;
+            chartSwitchStatusEl.textContent = `Đang tải ${sym}...`;
+            chartContainerEl.classList.add("switching");
+            candleSeries.applyOptions({ priceFormat: getPriceFormat(sym) });
+
+            try {
+
+                const minimumFade = new Promise(resolve => setTimeout(resolve, 80));
+                const timeframe = activeTimeframe;
+                const cacheKey = getOhlcCacheKey(sym, timeframe);
+                const cachedEntry = ohlcCache[cacheKey];
+                const cacheIsFresh = cachedEntry?.hydrated &&
+                    Date.now() - cachedEntry.receivedAt < 30000;
+                const dataPromise = cacheIsFresh
+                    ? Promise.resolve(cachedEntry.data)
+                    : fetchOhlcData(sym, timeframe);
+                const [data] = await Promise.all([dataPromise, minimumFade]);
+                if (!data.length) throw new Error(`OHLC ${sym}: không có dữ liệu`);
+
+                if (
+                    switchToken !== symbolSwitchToken ||
+                    sym !== activeSymbol ||
+                    timeframe !== activeTimeframe
+                ) return;
+
+                renderOhlc(sym, data, true, timeframe);
+                chart.timeScale().fitContent();
+                requestAnimationFrame(() => {
+                    if (switchToken === symbolSwitchToken) {
+                        chartContainerEl.classList.remove("switching");
+                    }
+                });
+            } catch (err) {
+                if (switchToken === symbolSwitchToken) {
+                    const fallback = chartSymbol || "BTCUSDT";
+                    document.getElementById(`ticker-${activeSymbol}`).classList.remove("active");
+                    activeSymbol = fallback;
+                    document.getElementById(`ticker-${activeSymbol}`).classList.add("active");
+                    document.getElementById("legend-symbol").textContent = activeSymbol;
+                    candleSeries.applyOptions({ priceFormat: getPriceFormat(activeSymbol) });
+                    chartContainerEl.classList.remove("switching");
+                }
+                console.error("Lỗi đổi symbol:", err);
+            }
+        }
+
+        async function fetchOhlcData(symbol, timeframe = activeTimeframe) {
+            const response = await fetch(
+                `/api/ohlc/${symbol}?timeframe=${encodeURIComponent(timeframe)}`
+            );
+            if (!response.ok) throw new Error(`OHLC ${symbol}: HTTP ${response.status}`);
+            const data = await response.json();
+            return cacheOhlcData(symbol, data, true, timeframe);
+        }
+
+        function mergeOhlcRows(currentRows = [], incomingRows = [], maxBars = 2160) {
+            const byWindow = new Map();
+            [...currentRows, ...incomingRows].forEach(row => {
+                if (row?.window_start) byWindow.set(row.window_start, row);
+            });
+            return [...byWindow.values()]
+                .sort((a, b) => parseUtcTimestamp(a.window_start) - parseUtcTimestamp(b.window_start))
+                .slice(-maxBars);
+        }
+
+        function cacheOhlcData(
+            symbol,
+            incomingRows,
+            hydrated = false,
+            timeframe = activeTimeframe
+        ) {
+            const cacheKey = getOhlcCacheKey(symbol, timeframe);
+            const current = ohlcCache[cacheKey];
+            const data = mergeOhlcRows(
+                hydrated ? [] : current?.data || [], incomingRows,
+                TIMEFRAME_CONFIG[timeframe].maxBars
+            );
+            ohlcCache[cacheKey] = {
+                data,
+                receivedAt: Date.now(),
+                hydrated: hydrated || current?.hydrated === true,
+            };
+            return data;
+        }
+
+        function toVolumeBar(bar) {
+            return {
+                time: bar.time,
+                value: bar.volume,
+                color: bar.close >= bar.open ? "rgba(74, 222, 128, 0.5)" : "rgba(248, 113, 113, 0.5)",
+            };
+        }
+
+        function updateLegend(bar) {
+            const dot = document.getElementById("legend-dot");
+            const isUp = bar.close >= bar.open;
+            dot.style.borderColor = isUp ? "#4ade80" : "#f87171";
+        }
+
+        function safeUpdate(symbol, bar, timeframe = activeTimeframe) {
+
+            if (symbol !== chartSymbol || timeframe !== chartTimeframe) return;
+            const cacheKey = getOhlcCacheKey(symbol, timeframe);
+            const last = lastBarTime[cacheKey];
+            if (last !== undefined && bar.time < last) {
+                return;
+            }
+            candleSeries.update(bar);
+            volumeSeries.update(toVolumeBar(bar));
+            lastBarTime[cacheKey] = bar.time;
+            if (symbol === activeSymbol && timeframe === activeTimeframe) {
+                updateLegend(bar);
+            }
+        }
+
+        function renderOhlc(
+            symbol,
+            rawData,
+            forceFull = false,
+            timeframe = activeTimeframe
+        ) {
+            const bars = rawData
+                .map(row => ({
+                    time: Math.floor(new Date(row.window_start + "Z").getTime() / 1000),
+                    open: parseFloat(row.open),
+                    high: parseFloat(row.high),
+                    low: parseFloat(row.low),
+                    close: parseFloat(row.close),
+                    volume: parseFloat(row.volume),
+                }))
+                .sort((a, b) => a.time - b.time);
+
+            if (bars.length === 0) return;
+
+            const cacheKey = getOhlcCacheKey(symbol, timeframe);
+            const needsFullRender = forceFull || chartSymbol !== symbol ||
+                chartTimeframe !== timeframe || !lastRenderedBar[cacheKey];
+            const lastBar = bars[bars.length - 1];
+
+            if (needsFullRender) {
+                candleSeries.setData(bars);
+                volumeSeries.setData(bars.map(toVolumeBar));
+                chartSymbol = symbol;
+                chartTimeframe = timeframe;
+                lastBarTime[cacheKey] = lastBar.time;
+                if (symbol === activeSymbol && timeframe === activeTimeframe) {
+                    updateLegend(lastBar);
+                }
+            } else {
+                safeUpdate(symbol, lastBar, timeframe);
+            }
+
+            lastRenderedBar[cacheKey] = lastBar;
+        }
+
+        function renderLiveCandle(symbol, row) {
+            const cacheKey = getOhlcCacheKey(symbol, activeTimeframe);
+            if (activeTimeframe === "24H" || !lastRenderedBar[cacheKey]) return;
+
+            const liveBar = {
+                time: Math.floor(new Date(row.window_start + "Z").getTime() / 1000),
+                open: parseFloat(row.open),
+                high: parseFloat(row.high),
+                low: parseFloat(row.low),
+                close: parseFloat(row.close),
+                volume: parseFloat(row.volume),
+            };
+
+            safeUpdate(symbol, liveBar, activeTimeframe);
+
+        }
+
+        function parseUtcTimestamp(value) {
+            if (!value) return NaN;
+            if (value.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(value)) {
+                return Date.parse(value);
+            }
+            return Date.parse(value.replace(" ", "T") + "Z");
+        }
+
+        function updateTicker(symbol, price, latestTradeTime) {
+            const card = document.getElementById(`ticker-${symbol}`);
+            if (!card) return;
+            const priceEl = card.querySelector(".price");
+            const oldPrice = parseFloat(priceEl.dataset.raw || "0");
+            const newPrice = parseFloat(price);
+
+            priceEl.textContent = formatPrice(price);
+            priceEl.dataset.raw = newPrice;
+
+            if (oldPrice && newPrice !== oldPrice) {
+                priceEl.classList.remove("flash-up", "flash-down");
+                void priceEl.offsetWidth;  
+                priceEl.classList.add(newPrice > oldPrice ? "flash-up" : "flash-down");
+            }
+
+            const parsedTradeTime = parseUtcTimestamp(latestTradeTime);
+            if (Number.isFinite(parsedTradeTime)) {
+                latestTradeTimes[symbol] = parsedTradeTime;
+            }
+            refreshFreshnessUi();
+        }
+
+        function refreshFreshnessUi() {
+            let freshCount = 0;
+            let knownCount = 0;
+            const delayed = [];
+            const stale = [];
+
+            SYMBOLS.forEach(symbol => {
+                const card = document.getElementById(`ticker-${symbol}`);
+                const freshnessEl = card?.querySelector(".freshness");
+                const labelEl = freshnessEl?.querySelector(".freshness-label");
+                const tradeTime = latestTradeTimes[symbol];
+                if (!freshnessEl || !labelEl || !Number.isFinite(tradeTime)) return;
+
+                knownCount += 1;
+                const ageSeconds = Math.max(0, (Date.now() - tradeTime) / 1000);
+                let state;
+                if (ageSeconds < 15) {
+                    state = "fresh";
+                    freshCount += 1;
+                } else if (ageSeconds < 60) {
+                    state = "delayed";
+                    delayed.push(symbol);
+                } else {
+                    state = "stale";
+                    stale.push(symbol);
+                }
+                freshnessEl.className = `freshness ${state}`;
+                const label = state === "fresh" ? "Live" : state === "delayed" ? "Delayed" : "Stale";
+                labelEl.textContent = `${label} · ${ageSeconds < 10 ? ageSeconds.toFixed(1) : Math.round(ageSeconds)}s`;
+                freshnessEl.title = `Trade event mới nhất cách hiện tại ${ageSeconds.toFixed(1)} giây`;
+            });
+
+            const summary = document.getElementById("freshness-summary");
+            summary.textContent = `Trade freshness: ${freshCount}/${SYMBOLS.length} fresh`;
+            summary.className = "health-chip " + (
+                knownCount < SYMBOLS.length ? "" : stale.length ? "error" : delayed.length ? "warning" : "ok"
+            );
+            const notes = [];
+            if (delayed.length) notes.push(`Delayed: ${delayed.join(", ")}`);
+            if (stale.length) notes.push(`Stale: ${stale.join(", ")}`);
+            summary.title = notes.join(" | ") || "Tất cả symbol có trade mới trong 15 giây";
+        }
+
+        setInterval(refreshFreshnessUi, 1000);
+
+        function formatPrice(price) {
+            const num = parseFloat(price);
+            return num < 1 ? num.toFixed(4) : num.toFixed(2);
+        }
+
+        // ---- Price change 24h + volume ----
+        function formatVolume(vol) {
+            const num = parseFloat(vol);
+            if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + "M";
+            if (num >= 1_000) return (num / 1_000).toFixed(2) + "K";
+            return num.toFixed(2);
+        }
+
+        function renderPriceChange(rows) {
+            rows.forEach(row => {
+                const card = document.getElementById(`ticker-${row.symbol}`);
+                if (!card) return;
+                const changeEl = card.querySelector(".change");
+                const pct = parseFloat(row.change_pct);
+                const sign = pct > 0 ? "+" : "";
+                const prefix = row.is_full_24h ? "" : "~";
+                changeEl.textContent = `${prefix}${sign}${pct.toFixed(2)}%`;
+                changeEl.className = "change " + (pct > 0 ? "positive" : pct < 0 ? "negative" : "neutral");
+                changeEl.title = row.is_full_24h
+                    ? "So với 24h trước"
+                    : "Chưa đủ 24h dữ liệu — so với dữ liệu sớm nhất hiện có";
+
+                const volEl = card.querySelector(".volume-24h");
+                if (volEl) volEl.textContent = `Vol $${formatVolume(row.volume_24h)}`;
+            });
+
+            renderVolumeBars(rows);
+            renderPriceStats(rows);
+            const updated = document.getElementById("stats-updated");
+            updated.textContent = `24h updated: ${new Date().toLocaleTimeString()}`;
+            updated.className = "health-chip ok";
+        }
+
+        function renderDataQuality(data) {
+            const alertEl = document.getElementById("dq-alert-summary");
+            const lookback = data.alert_lookback_minutes || 30;
+            const alertCount = data.recent_alert_count || 0;
+            alertEl.textContent = `DQ alerts (${lookback}m): ${alertCount}`;
+            alertEl.className = `health-chip ${alertCount ? "warning" : "ok"}`;
+            alertEl.title = alertCount
+                ? data.recent_alerts.map(alert => `${alert.alert_type} · ${alert.symbol}: ${alert.detail}`).join("\n")
+                : `Không có alert trong ${lookback} phút gần nhất`;
+
+            const checkedEl = document.getElementById("dq-checked");
+            const checkedAt = parseUtcTimestamp(data.checked_at);
+            checkedEl.textContent = `DQ checked: ${Number.isFinite(checkedAt) ? new Date(checkedAt).toLocaleTimeString() : "--"}`;
+            checkedEl.className = "health-chip ok";
+        }
+
+        function renderPriceStats(rows) {
+            const tbody = document.getElementById("price-stats-body");
+            const sorted = [...rows].sort((a, b) => a.symbol.localeCompare(b.symbol));
+
+            tbody.innerHTML = sorted.map(row => {
+                const color = getSymbolColor(row.symbol);
+                const asset = row.symbol.replace("USDT", "");
+                return `
+                    <tr>
+                        <td style="color: ${color}; font-weight: 600;">${asset}</td>
+                        <td class="text-right">${parseInt(row.trade_count).toLocaleString()}</td>
+                        <td class="text-right">$${formatPrice(row.low_24h)}</td>
+                        <td class="text-right">$${formatPrice(row.high_24h)}</td>
+                        <td class="text-right">$${formatPrice(row.avg_price_24h)}</td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        function renderVolumeBars(rows) {
+            const container = document.getElementById("volume-bars");
+            const maxVol = Math.max(...rows.map(r => parseFloat(r.volume_24h)), 1);
+
+            const sorted = [...rows].sort((a, b) => a.symbol.localeCompare(b.symbol));
+
+            container.innerHTML = sorted.map(row => {
+                const vol = parseFloat(row.volume_24h);
+                const heightPct = Math.max((vol / maxVol) * 100, 2);
+                const color = getSymbolColor(row.symbol);
+                return `
+                    <div class="volume-bar-col" title="${row.symbol}: $${formatVolume(vol)} USDT">
+                        <div class="volume-bar-fill" style="height: ${heightPct}%; background: ${color};"></div>
+                        <div class="volume-bar-label">${row.symbol.replace('USDT', '')}</div>
+                    </div>
+                `;
+            }).join("");
+
+            const axisEl = document.getElementById("volume-axis");
+            const steps = [1, 0.75, 0.5, 0.25, 0];
+            axisEl.innerHTML = steps.map(f => `<span>$${formatVolume(maxVol * f)}</span>`).join("");
+        }
+
+        function formatQty(qty) {
+            const num = parseFloat(qty);
+            return num < 1 ? num.toFixed(4) : num.toFixed(2);
+        }
+
+        // ---- Recent Trades ----
+
+        let lastTradeKeys = new Set();
+
+        function renderRecentTrades(rows) {
+            const tbody = document.getElementById("recent-trades-body");
+            const newKeys = new Set();
+
+            tbody.innerHTML = rows.map(row => {
+                const key = `${row.symbol}-${row.trade_id}`;
+                newKeys.add(key);
+                const isNew = !lastTradeKeys.has(key);
+                const time = new Date(row.trade_time + "Z").toLocaleTimeString(
+                    undefined,
+                    {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        fractionalSecondDigits: 3,
+                    }
+                );
+                const color = getSymbolColor(row.symbol);
+                return `
+                    <tr class="${isNew ? 'flash-new' : ''}">
+                        <td>${time}</td>
+                        <td style="color: ${color}">${row.symbol}</td>
+                        <td class="text-right">${row.trade_id}</td>
+                        <td class="text-right">$${formatPrice(row.price)}</td>
+                        <td class="text-right">${formatQty(row.quantity)}</td>
+                    </tr>
+                `;
+            }).join("");
+
+            lastTradeKeys = newKeys;
+        }
+
+        // ---- WebSocket + reconnect ----
+        const statusEl = document.getElementById("connection-status");
+        let ws;
+        let reconnectAttempts = 0;
+        let reconnectTimer = null;
+
+        function connect() {
+            ws = new WebSocket(`ws://${location.host}/ws`);
+
+            ws.onopen = () => {
+                statusEl.textContent = "Đã kết nối";
+                statusEl.className = "connected";
+                reconnectAttempts = 0;
+
+
+                const reconnectSymbol = activeSymbol;
+                const reconnectTimeframe = activeTimeframe;
+                fetchOhlcData(reconnectSymbol, reconnectTimeframe)
+                    .then(data => {
+                        if (
+                            reconnectSymbol === activeSymbol &&
+                            reconnectTimeframe === activeTimeframe &&
+                            !chartContainerEl.classList.contains("switching")
+                        ) {
+                            renderOhlc(
+                                reconnectSymbol,
+                                data,
+                                chartSymbol !== reconnectSymbol ||
+                                    chartTimeframe !== reconnectTimeframe,
+                                reconnectTimeframe
+                            );
+                        }
+                    })
+                    .catch(err => console.error("Lỗi đồng bộ OHLC sau reconnect:", err));
+            };
+
+            ws.onclose = () => {
+                statusEl.textContent = "Mất kết nối — đang thử lại...";
+                statusEl.className = "disconnected";
+                scheduleReconnect();
+            };
+
+            ws.onerror = () => {
+                ws.close();
+            };
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+
+                if (msg.type === "latest_price") {
+                    msg.data.forEach(row => updateTicker(
+                        row.symbol,
+                        row.price,
+                        row.latest_trade_time
+                    ));
+                }
+
+                if (msg.type === "ohlc") {
+                    ["1H", "3H", "6H"].forEach(timeframe => {
+                        const mergedData = cacheOhlcData(
+                            msg.symbol, msg.data, false, timeframe
+                        );
+                        if (
+                            msg.symbol === activeSymbol &&
+                            timeframe === activeTimeframe &&
+                            !chartContainerEl.classList.contains("switching")
+                        ) {
+                            renderOhlc(
+                                msg.symbol,
+                                mergedData,
+                                chartSymbol !== msg.symbol ||
+                                    chartTimeframe !== timeframe,
+                                timeframe
+                            );
+                        }
+                    });
+                }
+
+                if (
+                    msg.type === "live_candle" &&
+                    activeTimeframe !== "24H" &&
+                    msg.symbol === activeSymbol &&
+                    msg.symbol === chartSymbol &&
+                    activeTimeframe === chartTimeframe &&
+                    !chartContainerEl.classList.contains("switching")
+                ) {
+                    renderLiveCandle(msg.symbol, msg.data);
+                }
+
+                if (msg.type === "recent_trades") {
+                    renderRecentTrades(msg.data);
+                }
+
+                if (msg.type === "price_change") {
+                    renderPriceChange(msg.data);
+                    if (
+                        activeTimeframe === "24H" &&
+                        !chartContainerEl.classList.contains("switching")
+                    ) {
+                        const refreshSymbol = activeSymbol;
+                        fetchOhlcData(refreshSymbol, "24H")
+                            .then(data => {
+                                if (
+                                    refreshSymbol === activeSymbol &&
+                                    activeTimeframe === "24H"
+                                ) {
+                                    renderOhlc(refreshSymbol, data, false, "24H");
+                                }
+                            })
+                            .catch(err => console.error("Loi refresh OHLC 24H:", err));
+                    }
+                }
+
+                if (msg.type === "data_quality") {
+                    renderDataQuality(msg.data);
+                }
+            };
+        }
+
+        function scheduleReconnect() {
+            if (reconnectTimer) return;
+            const delay = Math.min(1000 * 2 ** reconnectAttempts, 10000);
+            reconnectAttempts += 1;
+            reconnectTimer = setTimeout(() => {
+                reconnectTimer = null;
+                connect();
+            }, delay);
+        }
+
+        connect();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+# Secrets and local environment files.
+.env
+.env.*
+!.env.example
+
+# Git and editor metadata.
+.git/
+.github/
+.agents/
+.codex/
+.vscode/
+.idea/
+
+# Python environments and generated files.
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+wheels/
+
+# Runtime data, logs, checkpoints, and local benchmark output.
+*.log
+*.pid
+benchmark_results/
+checkpoints/
+kafka_storage_backup_*/
+kafka/
+cloud/
+
+# Local context/handoff and temporary files.
+context/
+context_block*.html
+*.tmp
+*.bak
+
+# Files that are useful in the repository but not required by runtime images.
+tests/
+scripts/
+README.md
+demo.gif

@@ -1,0 +1,35 @@
+[project]
+name = "binance-etl-pipeline"
+version = "0.1.0"
+description = "Local realtime ETL pipeline from Binance WebSocket through Kafka and Spark or Flink into ClickHouse."
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = []
+
+[project.optional-dependencies]
+dashboard = [
+    "confluent-kafka>=2.15.0",
+    "fastapi>=0.141.1",
+    "requests>=2.34.2",
+    "uvicorn[standard]>=0.52.1",
+]
+producer = [
+    "confluent-kafka>=2.15.0",
+    "websockets>=17.0.1",
+]
+consumer = [
+    "pyspark==3.5.9",
+]
+
+[dependency-groups]
+dev = [
+    "apache-airflow>=3.2.2",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+markers = [
+    "local_only: tests that depend on local-only files or runtime configuration",
+]
